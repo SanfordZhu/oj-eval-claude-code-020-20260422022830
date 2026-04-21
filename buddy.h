@@ -15,7 +15,7 @@ static inline long IS_ERR(const void *ptr) { return IS_ERR_VALUE((unsigned long)
 
 int init_page(void *p, int pgcount);
 void *alloc_pages(int rank);
-void *return_pages(void *p);
+int return_pages(void *p);
 int query_ranks(void *p);
 int query_page_counts(int rank);
 
