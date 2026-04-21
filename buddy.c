@@ -17,6 +17,7 @@ static void *memory_base = NULL;
 static int total_pages = 0;
 static FreeBlock *free_lists[MAX_RANK + 1]; // Index 1..MAX_RANK
 static char allocated_ranks[32768]; // Max 32768 pages, track rank of allocated blocks
+static int free_counts[MAX_RANK + 1]; // Count of free blocks per rank
 
 // Helper functions
 static int get_block_size(int rank) {
@@ -70,9 +71,10 @@ int init_page(void *p, int pgcount) {
     memory_base = p;
     total_pages = pgcount;
 
-    // Initialize free lists
+    // Initialize free lists and counts
     for (int i = 1; i <= MAX_RANK; i++) {
         free_lists[i] = NULL;
+        free_counts[i] = 0;
     }
 
     // Calculate maximum rank that can hold all pages
@@ -82,6 +84,7 @@ int init_page(void *p, int pgcount) {
     FreeBlock *block = (FreeBlock *)p;
     block->next = NULL;
     free_lists[max_rank] = block;
+    free_counts[max_rank] = 1;
 
     // Initialize allocation tracking array
     for (int i = 0; i < total_pages; i++) {
@@ -109,6 +112,7 @@ void *alloc_pages(int rank) {
     // Take the first block from the free list
     FreeBlock *block = free_lists[current_rank];
     free_lists[current_rank] = block->next;
+    free_counts[current_rank]--;
 
     // Split the block down to the requested rank
     while (current_rank > rank) {
@@ -121,6 +125,7 @@ void *alloc_pages(int rank) {
         // Add buddy to free list
         buddy_block->next = free_lists[current_rank];
         free_lists[current_rank] = buddy_block;
+        free_counts[current_rank]++;
     }
 
     // Mark pages as allocated with this rank
@@ -178,6 +183,7 @@ int return_pages(void *p) {
             if (curr == buddy) {
                 // Remove buddy from free list
                 *prev = curr->next;
+                free_counts[current_rank]--;
                 buddy_found = 1;
                 break;
             }
@@ -200,6 +206,7 @@ int return_pages(void *p) {
     FreeBlock *block = (FreeBlock *)current_block;
     block->next = free_lists[current_rank];
     free_lists[current_rank] = block;
+    free_counts[current_rank]++;
 
     return OK;
 }
@@ -245,13 +252,5 @@ int query_page_counts(int rank) {
         return -EINVAL;
     }
 
-    int count = 0;
-    FreeBlock *curr = free_lists[rank];
-
-    while (curr) {
-        count++;
-        curr = curr->next;
-    }
-
-    return count;
+    return free_counts[rank];
 }
