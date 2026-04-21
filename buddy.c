@@ -93,7 +93,7 @@ int init_page(void *p, int pgcount) {
 
 void *alloc_pages(int rank) {
     if (rank < 1 || rank > MAX_RANK) {
-        return ERR_PTR(-EINVAL);
+        return -EINVAL;
     }
 
     // Find a free block of appropriate size
@@ -135,9 +135,9 @@ void *alloc_pages(int rank) {
     return block;
 }
 
-int return_pages(void *p) {
+void *return_pages(void *p) {
     if (!p || !is_valid_address(p)) {
-        return -EINVAL;
+        return ERR_PTR(-EINVAL);
     }
 
     // Get the rank from allocation tracking
@@ -146,7 +146,7 @@ int return_pages(void *p) {
 
     if (rank == 0) {
         // Block is not allocated
-        return -EINVAL;
+        return ERR_PTR(-EINVAL);
     }
 
     // Check alignment
@@ -201,7 +201,7 @@ int return_pages(void *p) {
     block->next = free_lists[current_rank];
     free_lists[current_rank] = block;
 
-    return OK;
+    return (void *)OK;
 }
 
 int query_ranks(void *p) {
